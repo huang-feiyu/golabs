@@ -9,5 +9,7 @@
 
 ## Note
 
+* [Note01](./note/Note01.md): Introduction & MapReduce
+
 ## Implementation
 

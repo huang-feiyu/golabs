@@ -10,6 +10,7 @@
 ## Note
 
 * [Note01](./note/Note01.md): Introduction & MapReduce
+* [Note02](./note/Note02.md): Threads & RPC
 
 ## Implementation
 

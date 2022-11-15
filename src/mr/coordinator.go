@@ -1,25 +1,42 @@
 package mr
 
-import "log"
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
+import (
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+	"time"
+)
 
 type Coordinator struct {
-	// Your definitions here.
+	files []string // for each file, assign a Map task
 
+	// intermediate file `mr-Y-X`
+	nMapTasks    int // Y
+	nReduceTasks int // X
+
+	mapTasksIssued      []time.Time
+	mapTasksFinished    []bool
+	reduceTasksIssued   []time.Time
+	reduceTasksFinished []bool
+
+	isDone bool
 }
 
-// Your code here -- RPC handlers for the worker to call.
+/*=== RPC handlers ===*/
+// HandleGetTask assigns one of the remaining tasks to the asking work
+func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) error {
+	log.Printf("pid[%v]: GetTask\n", args.Pid)
 
-//
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
+	// TODO: Assign tasks according to different phases
+	// for now, just send a Done message to worker
+	reply.TaskType = DONE
+	reply.TaskID = 0
+	reply.NReduceTasks = c.nReduceTasks
+	reply.Filename = c.files[0]
+	reply.NMapTasks = c.nMapTasks
+
 	return nil
 }
 
@@ -59,7 +76,16 @@ func (c *Coordinator) Done() bool {
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
-	// Your code here.
+	// initialize maintained data
+	c.files = files
+
+	c.nMapTasks = len(files)
+	c.mapTasksIssued = make([]time.Time, len(files))
+	c.mapTasksFinished = make([]bool, len(files))
+
+	c.nReduceTasks = nReduce
+	c.reduceTasksIssued = make([]time.Time, nReduce)
+	c.reduceTasksFinished = make([]bool, nReduce)
 
 	c.server()
 	return &c

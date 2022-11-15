@@ -12,11 +12,10 @@ functions, then run them on thousands of machines.
 
 ![MapReduce Overview](https://miro.medium.com/max/1400/1*g7loMfDE6uOq4wCxE5Mwug.png)
 
-There only two kinds of processes: coordinator/master & worker.
-
+There only two kinds of processes: coordinator & worker
 * one coordinator: distribute data/tasks, record status...
 * map workers: coordinator gives Map tasks to workers until all Maps complete
-    * write intermediate data to local disk (in current directory)
+    * write intermediate data to local disk (*mr-Y-X* in current directory)
     * split output into one file per Reduce task
 * reduce workers: after all Maps have finished, coordinator hands out Reduces
     * fetch its intermediate output from [all] map workers
@@ -34,7 +33,6 @@ There only two kinds of processes: coordinator/master & worker.
 ---
 
 [mrsequential.go](../src/main/mrsequential.go) code reading:
-
 1. `loadPlugin`: load the application `map` & `reduce` functions from *.so* file<br/>
    (1) `map`: `func(filename, contents) -> []KeyValue`<br/>
    (2) `reduce`: `func(key, values) -> string`
@@ -45,7 +43,6 @@ There only two kinds of processes: coordinator/master & worker.
 ---
 
 Test your code:
-
 ```bash
 # refresh word-count plugin
 go build -race -buildmode=plugin ../mrapps/wc.go
@@ -57,3 +54,18 @@ go run -race mrcoordinator.go pg-*.txt
 # run the worker in other window[s]
 go run -race mrworker.go wc.so
 ```
+
+## Implementation Notes
+
+> Because I do not know how to start, so I take lecture 6 for inspiration.
+
+* Coordinator
+    * Store task state, I-file location for Reduce (no need to store worker state,
+      every worker will ask for task initiative)
+    * Assign tasks
+* Worker
+    * Ask for task to execute
+
+General schedule of an MR:
+1. Worker asks coordinator for tasks: call `GetTask` to get a task from
+   coordinator

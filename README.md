@@ -16,3 +16,8 @@
 
 ## Implementation
 
+* [ ] Lab 1: distributed big-data framework (like MapReduce)
+* [ ] Lab 2: fault tolerance library using replication (Raft)
+* [ ] Lab 3: a simple fault-tolerant database
+* [ ] Lab 4: scalable database performance via sharding
+

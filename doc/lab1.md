@@ -79,6 +79,33 @@ General schedule of an MR:
    (2) `Reduce`: Read the intermediate files, collect the K/V pairs. Sort K/V
                pairs by key. Apply the reduce function for each distinct key.
                Create temp file to write, rename to the final name `mr-out-X`.<br/>
-   (3) Done: just return.
+   (3) `Done`: just return.
 4. Worker finishes up a task: call `FinishTask` to notify coordinator it's done
 5. If all tasks are done, then entire system is done
+
+---
+
+Q: How does condition variable work in our lab?
+
+Before answering the question, we need to know how an RPC works:
+* Client (Worker)
+    * Use `Dial()` creates a Socket connection to the server
+    * Use `Call()` to ask the RPC library to perform the call
+* Server (Coordinator)
+    * Declare an object with methods as RPC handlers
+    * Use `Register()` to register the object with the RPC library
+    * Start listening Socket connections
+    * Read each request, creates a new **goroutine** for this request, do stuff
+
+In our case, for every `GetTask` RPC, creates a goroutine for it:
+* If there is a task to be issued, just return and kill goroutine
+* Otherwise, we need to wait if not all Map tasks have done. The goroutine now
+  holds the lock, but it needs to wait until all Map tasks done. So, the
+  goroutine releases the lock and sleeps (gives up CPU) itself until waken-up.
+  * When a task finishes, the `FinishTask` handler will broadcast to wake all
+    waiting goroutines up, tell them to check whether it is possible to issue a
+    task then kill itself
+  * But if all `FinishTask` RPCs arrived **after** `GetTask` RPC handler walks
+    through it & **before** it gets waiting, the broadcast will be wasted. So,
+    we lost some waken-up. => Need a goroutine periodically wake the goroutines
+    of coordinator up.

@@ -12,7 +12,7 @@ import (
 
 type Coordinator struct {
 	files []string   // for each file, assign a Map task
-	lock  sync.Mutex // lock to protect internal data (better to use an RWMutex)
+	lock  sync.Mutex // lock to protect internal data
 	cond  *sync.Cond // conditional variable to wait for all Map tasks done
 
 	// intermediate file `mr-Y-X`
@@ -52,7 +52,8 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 		if cnt == 0 {
 			break // all Map done
 		} else {
-			c.cond.Wait()
+			log.Println("Coordinator: Wait when not all Map done")
+			c.cond.Wait() // just block here, waiting for waken up to check again
 		}
 	}
 
@@ -74,6 +75,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 		if cnt == 0 {
 			break // all Reduce done
 		} else {
+			log.Println("Coordinator: Wait when not all Reduce done")
 			c.cond.Wait()
 		}
 	}
@@ -85,7 +87,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 
 // HandleFinishTask gets the done message from a worker whose has done its task
 func (c *Coordinator) HandleFinishTask(args *FinishTaskArgs, reply *FinishTaskReply) error {
-	log.Printf("Coordinator: task %v[%v] done\n", args.TaskType, args.TaskID)
+	log.Printf("Coordinator: task %v[%v] done & Broadcast\n", args.TaskType, args.TaskID)
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -144,7 +146,9 @@ func (c *Coordinator) server() {
 // if the entire job has finished.
 //
 func (c *Coordinator) Done() bool {
-	// TODO: wait for some workers?
+	// Q: wait for some workers?
+	// A: No, workers can assume that when they cannot receive valid reply,
+	//    the whole work is done
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	res := c.isDone
@@ -159,8 +163,7 @@ func (c *Coordinator) Done() bool {
 //
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
-	condMu := sync.Mutex{}
-	c.cond = sync.NewCond(&condMu)
+	c.cond = sync.NewCond(&c.lock)
 
 	// initialize maintained data
 	c.files = files
@@ -172,6 +175,18 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.nReduceTasks = nReduce
 	c.reduceTasksIssued = make([]time.Time, nReduce)
 	c.reduceTasksFinished = make([]bool, nReduce)
+
+	go func() {
+		// a goroutine periodically wakes coordinator up,
+		// to avoid lost broadcast
+		for {
+			c.cond.L.Lock()
+			log.Printf("Coordinator: Broadcast periodically")
+			c.cond.Broadcast()
+			c.cond.L.Unlock()
+			time.Sleep(time.Second)
+		}
+	}()
 
 	c.server()
 	return &c

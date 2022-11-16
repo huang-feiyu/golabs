@@ -67,17 +67,17 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 			case REDUCE:
 				performReduce(reply.TaskID, reply.NMapTasks, reducef)
 			case DONE:
-				exit("done (normal exit by one)")
+				exit("(normal exit by done)")
 			default:
 				panic("Unknown type of task")
 			}
 		} else {
 			// assume that all work is done
-			exit("exit (connection is done)")
+			exit("(connection is done)")
 		}
 		ok, _ = FinishTask(reply.TaskType, reply.TaskID)
 		if !ok {
-			exit("exit (the lost process)")
+			exit("(the lost process)")
 		}
 		time.Sleep(time.Second)
 	}
@@ -221,7 +221,7 @@ func performReduce(taskID, nMap int, reducef func(string, []string) string) {
 
 /*=== Utils ===*/
 func exit(msg string) {
-	log.Printf("Worker: pid[%v] %v\n", os.Getpid(), msg)
+	log.Printf("Worker: pid[%v] exit %v\n", os.Getpid(), msg)
 	os.Exit(0)
 }
 

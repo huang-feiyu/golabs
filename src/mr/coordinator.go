@@ -43,7 +43,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 				continue
 			}
 			// if not finish, assign an unissued task to the worker
-			if !c.mapTasksIssued[i].IsZero() || !(time.Since(c.mapTasksIssued[i]) > 10) {
+			if c.mapTasksIssued[i].IsZero() || time.Since(c.mapTasksIssued[i]) > 10*time.Second {
 				log.Printf("coordinator: Issue %v[%v]\n", MAP, i)
 				c.mapTasksIssued[i] = time.Now()
 				reply.TaskType = MAP

@@ -71,3 +71,8 @@ General schedule of an MR:
    coordinator
 2. Coordinator assigns task according to current phase, only until all Map tasks
    are done, coordinator will issue Reduce tasks
+3. Worker gets reply(task) from coordinator, it will do stuff according to the
+   task type:<br/>
+   (1) `Map`: Perform the map function on each K/V pair, store them in an
+       intermediate file, store them in NReduce intermediate files, finally
+       atomically rename them to `mr-Y-X`<br/>

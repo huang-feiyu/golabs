@@ -13,7 +13,7 @@ import (
 type Coordinator struct {
 	files []string   // for each file, assign a Map task
 	lock  sync.Mutex // lock to protect internal data (better to use an RWMutex)
-	cond  sync.Cond  // conditional variable to wait for all Map tasks done
+	cond  *sync.Cond // conditional variable to wait for all Map tasks done
 
 	// intermediate file `mr-Y-X`
 	nMapTasks    int // Y
@@ -30,7 +30,7 @@ type Coordinator struct {
 /*=== RPC handlers ===*/
 // HandleGetTask assigns one of the remaining tasks to the asking worker
 func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) error {
-	log.Printf("pid[%v]: GetTask\n", args.Pid)
+	log.Printf("Coordinator: pid[%v]: GetTask\n", args.Pid)
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -44,13 +44,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 			}
 			// if not finish, assign an unissued task to the worker
 			if c.mapTasksIssued[i].IsZero() || time.Since(c.mapTasksIssued[i]) > 10*time.Second {
-				log.Printf("coordinator: Issue %v[%v]\n", MAP, i)
-				c.mapTasksIssued[i] = time.Now()
-				reply.TaskType = MAP
-				reply.TaskID = i
-				reply.NReduceTasks = c.nReduceTasks
-				reply.Filename = c.files[i]
-				reply.NMapTasks = c.nMapTasks
+				c.issueTask(MAP, i, reply)
 				return nil
 			}
 			cnt++
@@ -91,7 +85,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 
 // HandleFinishTask gets the done message from a worker whose has done its task
 func (c *Coordinator) HandleFinishTask(args *FinishTaskArgs, reply *FinishTaskReply) error {
-	log.Printf("coordinator: task %v[%v] done\n", args.TaskType, args.TaskID)
+	log.Printf("Coordinator: task %v[%v] done\n", args.TaskType, args.TaskID)
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -104,7 +98,7 @@ func (c *Coordinator) HandleFinishTask(args *FinishTaskArgs, reply *FinishTaskRe
 	case DONE:
 		panic("Unreachable: finish done")
 	}
-	c.cond.Broadcast()
+	c.cond.Broadcast() // notify all stopping at cond.Wait()
 
 	if c.isDone {
 		return os.ErrClosed // just a placeholder to tell worker, everything is done
@@ -114,7 +108,7 @@ func (c *Coordinator) HandleFinishTask(args *FinishTaskArgs, reply *FinishTaskRe
 
 // IssueTask to reduce duplicate code
 func (c *Coordinator) issueTask(taskType TaskType, taskID int, reply *GetTaskReply) {
-	log.Printf("coordinator: Issue %v[%v]\n", taskType, taskID)
+	log.Printf("Coordinator: Issue %v[%v]\n", taskType, taskID)
 	reply.TaskType = taskType
 	reply.TaskID = taskID
 	reply.NReduceTasks = c.nReduceTasks
@@ -152,8 +146,8 @@ func (c *Coordinator) server() {
 func (c *Coordinator) Done() bool {
 	// TODO: wait for some workers?
 	c.lock.Lock()
-	res := c.isDone
 	defer c.lock.Unlock()
+	res := c.isDone
 
 	return res
 }
@@ -165,6 +159,8 @@ func (c *Coordinator) Done() bool {
 //
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
+	condMu := sync.Mutex{}
+	c.cond = sync.NewCond(&condMu)
 
 	// initialize maintained data
 	c.files = files

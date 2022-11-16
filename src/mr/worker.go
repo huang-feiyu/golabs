@@ -67,18 +67,17 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 			case REDUCE:
 				performReduce(reply.TaskID, reply.NMapTasks, reducef)
 			case DONE:
-				log.Printf("pid[%v]: done\n", os.Getpid())
-				os.Exit(0)
+				exit("done (normal exit by one)")
 			default:
 				panic("Unknown type of task")
 			}
 		} else {
-			os.Exit(-1)
+			// assume that all work is done
+			exit("exit (connection is done)")
 		}
 		ok, _ = FinishTask(reply.TaskType, reply.TaskID)
 		if !ok {
-			log.Printf("pid[%v]: done\n", os.Getpid())
-			os.Exit(0)
+			exit("exit (the lost process)")
 		}
 		time.Sleep(time.Second)
 	}
@@ -107,7 +106,8 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		//log.Fatal("dialing:", err)
+		return false
 	}
 	defer c.Close()
 
@@ -116,7 +116,7 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Println(err)
+	//fmt.Println(err)
 	return false
 }
 
@@ -220,6 +220,11 @@ func performReduce(taskID, nMap int, reducef func(string, []string) string) {
 }
 
 /*=== Utils ===*/
+func exit(msg string) {
+	log.Printf("Worker: pid[%v] %v\n", os.Getpid(), msg)
+	os.Exit(0)
+}
+
 func newName(Y, X int, dir string, pattern string) string {
 	pattern = dir + pattern
 	newName := strings.Replace(pattern, "$1", strconv.Itoa(Y), 1)

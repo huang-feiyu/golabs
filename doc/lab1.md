@@ -69,3 +69,5 @@ go run -race mrworker.go wc.so
 General schedule of an MR:
 1. Worker asks coordinator for tasks: call `GetTask` to get a task from
    coordinator
+2. Coordinator assigns task according to current phase, only until all Map tasks
+   are done, coordinator will issue Reduce tasks

@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"sync"
 	"time"
 )
 
 type Coordinator struct {
-	files []string // for each file, assign a Map task
+	lock  sync.Mutex // lock to protect internal data (better to use an RWMutex)
+	files []string   // for each file, assign a Map task
 
 	// intermediate file `mr-Y-X`
 	nMapTasks    int // Y
@@ -25,17 +27,42 @@ type Coordinator struct {
 }
 
 /*=== RPC handlers ===*/
-// HandleGetTask assigns one of the remaining tasks to the asking work
+// HandleGetTask assigns one of the remaining tasks to the asking worker
 func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) error {
 	log.Printf("pid[%v]: GetTask\n", args.Pid)
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
-	// TODO: Assign tasks according to different phases
-	// for now, just send a Done message to worker
-	reply.TaskType = DONE
-	reply.TaskID = 0
-	reply.NReduceTasks = c.nReduceTasks
-	reply.Filename = c.files[0]
-	reply.NMapTasks = c.nMapTasks
+	// Issue Map tasks until all finished
+	// TODO: Need a wait for all finished instead of issuing tasks
+	for {
+		cnt := 0 // # of issued but un-finished tasks
+		for i, done := range c.mapTasksFinished {
+			// if the task is done
+			if done {
+				continue
+			}
+			// if not finish, assign an unissued task to the worker
+			if !c.mapTasksIssued[i].IsZero() || !(time.Since(c.mapTasksIssued[i]) > 10) {
+				log.Printf("coordinator: Issue %v[%v]\n", MAP, i)
+				c.mapTasksIssued[i] = time.Now()
+				reply.TaskType = MAP
+				reply.TaskID = i
+				reply.NReduceTasks = c.nReduceTasks
+				reply.Filename = c.files[i]
+				reply.NMapTasks = c.nMapTasks
+				return nil
+			}
+			cnt++
+		}
+		if cnt == 0 {
+			break // all Map done
+		} else {
+			panic("Unimplemented: Wait for all Map tasks done")
+		}
+	}
+
+	panic("Unimplemented: issue Reduce task")
 
 	return nil
 }

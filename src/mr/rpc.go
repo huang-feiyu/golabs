@@ -22,14 +22,12 @@ const (
 )
 
 /*=== GetTask RPC ===*/
-// GetTaskArgs is used for AskTask RPC (worker -> coordinator),
-// passing no information
+// GetTaskArgs is used for AskTask RPC (worker -> coordinator)
 type GetTaskArgs struct {
 	Pid int // for debugging
 }
 
-// GetTaskReply is used for AskTask RPC reply (coordinator -> worker),
-// passing the following data
+// GetTaskReply is used for AskTask RPC reply (coordinator -> worker)
 type GetTaskReply struct {
 	TaskType TaskType
 	TaskID   int
@@ -40,6 +38,17 @@ type GetTaskReply struct {
 
 	// For reduce
 	NMapTasks int // to know how many files to read, the Y in `mr-Y-X`
+}
+
+/*=== FinishTask RPC=== */
+// FinishTaskArgs is used for FinishTask RPC (worker -> coordinator)
+type FinishTaskArgs struct {
+	TaskType TaskType
+	TaskID   int
+}
+
+// FinishTaskReply is used for FinishTask RPC (worker -> coordinator)
+type FinishTaskReply struct {
 }
 
 // Cook up a unique-ish UNIX-domain socket name

@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 //
@@ -30,12 +31,12 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-// 1. Worker periodically asks the coordinator for work, sleeping with
-//    time.Sleep() between each request.
-//    For different types of tasks:
-//    (1) Map: Perform the map function on each K/V pair, store them in
-//             NReduce intermediate files, finally atomically rename them
-//             to `mr-Y-X`.
+// Worker periodically asks the coordinator for work, sleeping with
+// time.Sleep() between each request.
+// For different types of tasks:
+// (1) Map: Perform the map function on each K/V pair, store them in
+//          NReduce intermediate files, finally atomically rename them
+//          to `mr-Y-X`.
 func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string) string) {
 	for {
 		ok, reply := GetTask()
@@ -45,7 +46,8 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 			case MAP:
 				performMap(reply.TaskID, reply.NReduceTasks, reply.Filename, mapf)
 			case REDUCE:
-				panic("Unimplemented")
+				log.Printf("Unimplemented: performReduce")
+				os.Exit(0)
 			case DONE:
 				log.Printf("pid[%v]: done\n", os.Getpid())
 				os.Exit(0)
@@ -53,10 +55,13 @@ func Worker(mapf func(string, string) []KeyValue, reducef func(string, []string)
 				panic("Unknown type of task")
 			}
 		} else {
+			os.Exit(-1)
+		}
+		ok, _ = FinishTask(reply.TaskType, reply.TaskID)
+		if !ok {
 			os.Exit(0)
 		}
-		// TODO: finish the task
-		os.Exit(0)
+		time.Sleep(time.Second)
 	}
 }
 
@@ -65,6 +70,13 @@ func GetTask() (bool, *GetTaskReply) {
 	args := GetTaskArgs{os.Getpid()}
 	reply := GetTaskReply{}
 	ok := call("Coordinator.HandleGetTask", &args, &reply)
+	return ok, &reply
+}
+
+func FinishTask(taskType TaskType, taskID int) (bool, *FinishTaskReply) {
+	args := FinishTaskArgs{taskType, taskID}
+	reply := FinishTaskReply{}
+	ok := call("Coordinator.HandleFinishTask", &args, &reply)
 	return ok, &reply
 }
 

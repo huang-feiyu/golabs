@@ -11,8 +11,9 @@ import (
 )
 
 type Coordinator struct {
-	lock  sync.Mutex // lock to protect internal data (better to use an RWMutex)
 	files []string   // for each file, assign a Map task
+	lock  sync.Mutex // lock to protect internal data (better to use an RWMutex)
+	cond  sync.Cond  // conditional variable to wait for all Map tasks done
 
 	// intermediate file `mr-Y-X`
 	nMapTasks    int // Y
@@ -33,8 +34,7 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	// Issue Map tasks until all finished
-	// TODO: Need a wait for all finished instead of issuing tasks
+	// 1. Issue Map tasks until no running Map task
 	for {
 		cnt := 0 // # of issued but un-finished tasks
 		for i, done := range c.mapTasksFinished {
@@ -58,13 +58,75 @@ func (c *Coordinator) HandleGetTask(args *GetTaskArgs, reply *GetTaskReply) erro
 		if cnt == 0 {
 			break // all Map done
 		} else {
-			panic("Unimplemented: Wait for all Map tasks done")
+			c.cond.Wait()
 		}
 	}
 
-	panic("Unimplemented: issue Reduce task")
-
+	// 2. Issue Reduce tasks until everything is done
+	for {
+		cnt := 0 // # of issued but un-finished tasks
+		for i, done := range c.reduceTasksFinished {
+			// if the task is done
+			if done {
+				continue
+			}
+			// if not finish, assign an unissued task to the worker
+			if c.reduceTasksIssued[i].IsZero() || time.Since(c.reduceTasksIssued[i]) > 10*time.Second {
+				c.issueTask(REDUCE, i, reply)
+				return nil
+			}
+			cnt++
+		}
+		if cnt == 0 {
+			break // all Reduce done
+		} else {
+			c.cond.Wait()
+		}
+	}
+	// 3. All is done
+	c.isDone = true
+	c.issueTask(DONE, 0, reply)
 	return nil
+}
+
+// HandleFinishTask gets the done message from a worker whose has done its task
+func (c *Coordinator) HandleFinishTask(args *FinishTaskArgs, reply *FinishTaskReply) error {
+	log.Printf("coordinator: task %v[%v] done\n", args.TaskType, args.TaskID)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	taskID := args.TaskID
+	switch args.TaskType {
+	case MAP:
+		c.mapTasksFinished[taskID] = true
+	case REDUCE:
+		c.reduceTasksFinished[taskID] = true
+	case DONE:
+		panic("Unreachable: finish done")
+	}
+	c.cond.Broadcast()
+
+	if c.isDone {
+		return os.ErrClosed // just a placeholder to tell worker, everything is done
+	}
+	return nil
+}
+
+// IssueTask to reduce duplicate code
+func (c *Coordinator) issueTask(taskType TaskType, taskID int, reply *GetTaskReply) {
+	log.Printf("coordinator: Issue %v[%v]\n", taskType, taskID)
+	reply.TaskType = taskType
+	reply.TaskID = taskID
+	reply.NReduceTasks = c.nReduceTasks
+	reply.NMapTasks = c.nMapTasks
+
+	switch taskType {
+	case MAP:
+		c.mapTasksIssued[taskID] = time.Now()
+		reply.Filename = c.files[taskID]
+	case REDUCE:
+		c.reduceTasksIssued[taskID] = time.Now()
+	}
 }
 
 //

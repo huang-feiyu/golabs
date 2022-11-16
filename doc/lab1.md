@@ -67,7 +67,7 @@ go run -race mrworker.go wc.so
     * Ask for task to execute
 
 General schedule of an MR:
-1. Worker asks coordinator for tasks: call `GetTask` to get a task from
+1. Worker asks coordinator for task: call `GetTask` to get a task from
    coordinator
 2. Coordinator assigns task according to current phase, only until all Map tasks
    are done, coordinator will issue Reduce tasks
@@ -76,3 +76,4 @@ General schedule of an MR:
    (1) `Map`: Perform the map function on each K/V pair, store them in an
        intermediate file, store them in NReduce intermediate files, finally
        atomically rename them to `mr-Y-X`<br/>
+4. Worker finishes up a task: call `FinishTask` to notify coordinator it's done

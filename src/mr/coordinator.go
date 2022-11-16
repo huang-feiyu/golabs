@@ -150,11 +150,12 @@ func (c *Coordinator) server() {
 // if the entire job has finished.
 //
 func (c *Coordinator) Done() bool {
-	ret := false
+	// TODO: wait for some workers?
+	c.lock.Lock()
+	res := c.isDone
+	defer c.lock.Unlock()
 
-	// Your code here.
-
-	return ret
+	return res
 }
 
 //

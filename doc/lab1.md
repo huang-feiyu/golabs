@@ -64,16 +64,21 @@ go run -race mrworker.go wc.so
       every worker will ask for task initiative)
     * Assign tasks
 * Worker
-    * Ask for task to execute
+    * Ask for task to execute periodically
+    * Perform tasks
 
 General schedule of an MR:
-1. Worker asks coordinator for task: call `GetTask` to get a task from
-   coordinator
+1. Worker asks coordinator for task periodically: call `GetTask` to get a task
+   from coordinator
 2. Coordinator assigns task according to current phase, only until all Map tasks
-   are done, coordinator will issue Reduce tasks
+   are done, coordinator will issue Reduce tasks. If everything is done, 
 3. Worker gets reply(task) from coordinator, it will do stuff according to the
    task type:<br/>
-   (1) `Map`: Perform the map function on each K/V pair, store them in an
-       intermediate file, store them in NReduce intermediate files, finally
-       atomically rename them to `mr-Y-X`<br/>
+   (1) `Map`: Perform the map function on each K/V pair, store them in NReduce
+            intermediate files, finally atomically rename them to `mr-Y-X`.<br/>
+   (2) `Reduce`: Read the intermediate files, collect the K/V pairs. Sort K/V
+               pairs by key. Apply the reduce function for each distinct key.
+               Create temp file to write, rename to the final name `mr-out-X`.<br/>
+   (3) Done: just return.
 4. Worker finishes up a task: call `FinishTask` to notify coordinator it's done
+5. If all tasks are done, then entire system is done

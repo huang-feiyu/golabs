@@ -12,6 +12,7 @@
 * [Note01](./note/Note01.md): Introduction & MapReduce
 * [Note02](./note/Note02.md): Threads & RPC
 * [Note03](./note/Note03.md): GFS
+* [Note04](./note/Note04.md): Primary/Backup replication
 * [Note06](./note/Note06.md): Lab1 Q&A
 
 ## Implementation

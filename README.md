@@ -15,6 +15,7 @@
 * [Note04](./note/Note04.md): Primary/Backup replication
 * [Note05](./note/Note05.md): Raft (1): Leader Election & Log Replication
 * [Note06](./note/Note06.md): Lab1 Q&A
+* [Note07](./note/Note07.md): Raft (2): Log divergence & Snapshots
 
 ## Implementation
 

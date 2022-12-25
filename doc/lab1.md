@@ -71,7 +71,8 @@ General schedule of an MR:
 1. Worker asks coordinator for task periodically: call `GetTask` to get a task
    from coordinator
 2. Coordinator assigns task according to current phase, only until all Map tasks
-   are done, coordinator will issue Reduce tasks. If everything is done, 
+   are done, coordinator will issue Reduce tasks. If everything is done, it will
+   no longer issue tasks (but DONE task) and the whole MR process is done.
 3. Worker gets reply(task) from coordinator, it will do stuff according to the
    task type:<br/>
    (1) `Map`: Perform the map function on each K/V pair, store them in NReduce

@@ -21,9 +21,7 @@
 
 ## Implementation
 
-* [x] Lab 1: distributed big-data framework (like MapReduce)
-    * [doc](./doc/lab1.md)
-* [ ] Lab 2: fault tolerance library using replication (Raft)
-* [ ] Lab 3: a simple fault-tolerant database
-* [ ] Lab 4: scalable database performance via sharding
-
+* [x] Lab 1: MapReduce, distributed big-data framework -- [doc](./doc/lab1.md)
+* [ ] Lab 2: Raft, fault tolerance library using Raft replication
+* [ ] Lab 3: Raft KV, a simple fault-tolerant database
+* [ ] Lab 4: Sharded KV, scalable database performance via sharding

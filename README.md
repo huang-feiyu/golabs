@@ -16,9 +16,10 @@
 * [Note05](./note/Note05.md): Raft (1): Leader Election & Log Replication
 * [Note06](./note/Note06.md): Lab1 Q&A
 * [Note07](./note/Note07.md): Raft (2): Log divergence & Snapshots
-* [Note09](./note/Note09.md): ZooKeeper
 * [Note08](./note/Note08.md): Lab2 Q&A
+* [Note09](./note/Note09.md): ZooKeeper
 * [Note10](./note/Note10.md): Chain Replication
+* [Note11](./note/Note11.md): Distributed Transactions
 
 ## Implementation
 
